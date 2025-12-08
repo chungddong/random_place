@@ -45,6 +45,33 @@ class ScrapProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // 특정 폴더에 스크랩 추가
+  Future<void> addScrapToFolder(String userId, PlaceResult place, String? folderId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final scrap = ScrapModel(
+      id: '', // Firestore에서 자동 생성됨
+      userId: userId,
+      placeId: place.id,
+      placeName: place.placeName,
+      categoryName: place.categoryName,
+      phone: place.phone,
+      addressName: place.addressName,
+      roadAddressName: place.roadAddressName,
+      placeUrl: place.placeUrl,
+      latitude: place.y,
+      longitude: place.x,
+      scrapedAt: DateTime.now(),
+      folderId: folderId, // 폴더 ID 추가
+    );
+
+    await _firestoreService.addScrap(scrap);
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   // 스크랩 삭제
   Future<void> deleteScrap(String scrapId) async {
     await _firestoreService.deleteScrap(scrapId);

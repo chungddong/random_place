@@ -14,6 +14,7 @@ class ScrapModel {
   final double longitude;
   final DateTime scrapedAt;
   final String? memo; // 사용자 메모 (선택)
+  final String? folderId; // 폴더 ID (null이면 기본 폴더)
 
   ScrapModel({
     required this.id,
@@ -29,6 +30,7 @@ class ScrapModel {
     required this.longitude,
     required this.scrapedAt,
     this.memo,
+    this.folderId,
   });
 
   factory ScrapModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -46,6 +48,7 @@ class ScrapModel {
       longitude: (data['longitude'] ?? 0.0).toDouble(),
       scrapedAt: (data['scrapedAt'] as Timestamp).toDate(),
       memo: data['memo'],
+      folderId: data['folderId'],
     );
   }
 
@@ -63,6 +66,7 @@ class ScrapModel {
       'longitude': longitude,
       'scrapedAt': Timestamp.fromDate(scrapedAt),
       'memo': memo,
+      'folderId': folderId,
     };
   }
 }

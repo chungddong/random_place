@@ -1,40 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/scrap_provider.dart';
 import '../models/scrap_model.dart';
+import '../services/firestore_service.dart';
 import 'result_screen.dart';
 
 class ScrapListScreen extends StatefulWidget {
-  const ScrapListScreen({super.key});
+  final String? folderId; // null이면 기본 폴더
+  final String folderName;
+
+  const ScrapListScreen({
+    super.key,
+    this.folderId,
+    required this.folderName,
+  });
 
   @override
   State<ScrapListScreen> createState() => _ScrapListScreenState();
 }
 
 class _ScrapListScreenState extends State<ScrapListScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // 로그인된 사용자의 스크랩 구독
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final scrapProvider = Provider.of<ScrapProvider>(context, listen: false);
-
-      if (authProvider.user != null) {
-        scrapProvider.subscribeToUserScraps(authProvider.user!.uid);
-      }
-    });
-  }
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('스크랩 목록'),
+        title: Text(widget.folderName),
       ),
-      body: Consumer2<AuthProvider, ScrapProvider>(
-        builder: (context, authProvider, scrapProvider, child) {
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
           // 로그인하지 않은 경우
           if (authProvider.user == null) {
             return Center(
@@ -64,42 +59,63 @@ class _ScrapListScreenState extends State<ScrapListScreen> {
             );
           }
 
-          // 스크랩이 없는 경우
-          if (scrapProvider.scraps.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.bookmark_border,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '스크랩한 장소가 없습니다',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '마음에 드는 장소를 발견하면\n스크랩해보세요',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                  ),
-                ],
-              ),
-            );
-          }
+          // 특정 폴더의 스크랩 목록 스트림
+          return StreamBuilder<List<ScrapModel>>(
+            stream: _firestoreService.getFolderScraps(
+              authProvider.user!.uid,
+              widget.folderId,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          // 스크랩 리스트
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: scrapProvider.scraps.length,
-            itemBuilder: (context, index) {
-              final scrap = scrapProvider.scraps[index];
-              return _buildScrapCard(context, scrap, scrapProvider);
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text('오류가 발생했습니다: ${snapshot.error}'),
+                );
+              }
+
+              final scraps = snapshot.data ?? [];
+
+              // 스크랩이 없는 경우
+              if (scraps.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.bookmark_border,
+                        size: 80,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '스크랩한 장소가 없습니다',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '마음에 드는 장소를 발견하면\n스크랩해보세요',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // 스크랩 리스트
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: scraps.length,
+                itemBuilder: (context, index) {
+                  final scrap = scraps[index];
+                  return _buildScrapCard(context, scrap);
+                },
+              );
             },
           );
         },
@@ -107,7 +123,7 @@ class _ScrapListScreenState extends State<ScrapListScreen> {
     );
   }
 
-  Widget _buildScrapCard(BuildContext context, ScrapModel scrap, ScrapProvider scrapProvider) {
+  Widget _buildScrapCard(BuildContext context, ScrapModel scrap) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
@@ -181,7 +197,7 @@ class _ScrapListScreenState extends State<ScrapListScreen> {
                       );
 
                       if (confirmed == true) {
-                        await scrapProvider.deleteScrap(scrap.id);
+                        await _firestoreService.deleteScrap(scrap.id);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('스크랩이 삭제되었습니다.')),

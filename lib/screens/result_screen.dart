@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/scrap_provider.dart';
+import '../providers/folder_provider.dart';
 
 /// 검색 결과를 담는 모델 클래스
 class PlaceResult {
@@ -88,6 +89,50 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
     _animationController.dispose();
     mapController?.dispose();
     super.dispose();
+  }
+
+  // 폴더 선택 다이얼로그
+  Future<String?> _showFolderSelectDialog(BuildContext context) async {
+    final folderProvider = Provider.of<FolderProvider>(context, listen: false);
+    final folders = folderProvider.folders;
+
+    return showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('스크랩 폴더 선택'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                // 기본 폴더
+                ListTile(
+                  leading: const Icon(Icons.bookmark),
+                  title: const Text('기본 폴더'),
+                  onTap: () => Navigator.of(context).pop(null), // null = 기본 폴더
+                ),
+                const Divider(),
+                // 사용자 생성 폴더
+                ...folders.map((folder) {
+                  return ListTile(
+                    leading: const Icon(Icons.folder),
+                    title: Text(folder.name),
+                    onTap: () => Navigator.of(context).pop(folder.id),
+                  );
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -196,15 +241,21 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                                 );
                                               }
                                             } else {
-                                              // 스크랩 추가
-                                              await scrapProvider.addScrap(
-                                                authProvider.user!.uid,
-                                                place,
-                                              );
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('스크랩되었습니다!')),
+                                              // 폴더 선택 다이얼로그 표시
+                                              final selectedFolderId = await _showFolderSelectDialog(context);
+
+                                              // 취소하지 않은 경우에만 스크랩 추가
+                                              if (selectedFolderId != 'cancelled' && context.mounted) {
+                                                await scrapProvider.addScrapToFolder(
+                                                  authProvider.user!.uid,
+                                                  place,
+                                                  selectedFolderId, // null이면 기본 폴더
                                                 );
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text('스크랩되었습니다!')),
+                                                  );
+                                                }
                                               }
                                             }
                                           },

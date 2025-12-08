@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import 'scrap_list_screen.dart';
+import 'scrap_folder_screen.dart';
 
 class MyPage extends StatelessWidget {
   const MyPage({super.key});
@@ -86,18 +86,18 @@ class MyPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // 스크랩 목록
+                  // 스크랩 폴더
                   _buildMenuItem(
                     context,
                     _MenuItem(
-                      icon: Icons.bookmark,
-                      title: '스크랩 목록',
-                      subtitle: '저장한 장소 모아보기',
+                      icon: Icons.folder_special,
+                      title: '스크랩 폴더',
+                      subtitle: '저장한 장소 폴더별로 관리',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ScrapListScreen(),
+                            builder: (context) => const ScrapFolderScreen(),
                           ),
                         );
                       },

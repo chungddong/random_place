@@ -47,4 +47,35 @@ class FirestoreService {
       'memo': memo,
     });
   }
+
+  // 특정 폴더의 스크랩 목록 가져오기 (실시간)
+  Stream<List<ScrapModel>> getFolderScraps(String userId, String? folderId) {
+    Query query = _firestore
+        .collection('scraps')
+        .where('userId', isEqualTo: userId);
+
+    if (folderId == null) {
+      // 기본 폴더 (folderId가 null인 스크랩)
+      query = query.where('folderId', isEqualTo: null);
+    } else {
+      // 특정 폴더
+      query = query.where('folderId', isEqualTo: folderId);
+    }
+
+    return query
+        .orderBy('scrapedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ScrapModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+    });
+  }
+
+  // 스크랩을 다른 폴더로 이동
+  Future<void> moveScrapToFolder(String scrapId, String? folderId) async {
+    await _firestore.collection('scraps').doc(scrapId).update({
+      'folderId': folderId,
+    });
+  }
 }
